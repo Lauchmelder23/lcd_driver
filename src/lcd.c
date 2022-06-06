@@ -75,13 +75,13 @@ static void __exit lcd_exit_module(void)
 module_init(lcd_init_module);
 module_exit(lcd_exit_module);
 
-static int  __init lcd_init_cdev(void)
+static int __init lcd_init_cdev(void)
 {
     int result;
 
     cdev_init(&lcddev.dev, &lcd_fops);
     lcddev.dev.owner = THIS_MODULE;
-    lcddev.dev.ops = NULL;
+    lcddev.dev.ops = &lcd_fops;
 
     result = cdev_add(&lcddev.dev, lcddev.devno, 1);
     if(result < 0)
