@@ -10,9 +10,11 @@ MODULE_LICENSE("GPL");
 
 int lcd_major = LCD_MAJOR;
 int lcd_minor = LCD_MINOR;
+int lcd_gpio  = LCD_GPIO;
 
 module_param(lcd_major, int, S_IRUGO);
 module_param(lcd_minor, int, S_IRUGO);
+module_param(lcd_gpio,  int, S_IRUGO);
 
 static struct lcd_dev lcddev = { 0 };
 static int  __init lcd_init_cdev(void);
@@ -59,6 +61,8 @@ static int __init lcd_init_module(void)
         printk(KERN_ERR "%s: Failed to register character device\n", THIS_MODULE->name);
         return result;
     }
+
+    sema_init(&lcddev.sem, 1);
 
     result = lcd_init_cdev();
     if(result < 0)
@@ -113,5 +117,5 @@ static int  __init lcd_init_gpio(void)
 
 static void __exit lcd_exit_gpio(void)
 {
-    
+
 }

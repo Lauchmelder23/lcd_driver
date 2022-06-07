@@ -7,13 +7,13 @@
 #define LCD_MAJOR 0
 #define LCD_MINOR 0
 
-extern int lcd_major;
-extern int lcd_minor;
+#define LCD_GPIO 18
 
 struct lcd_dev
 {
     dev_t devno;
     struct cdev dev;
+    struct semaphore sem;
     int gpio;
 };
 
