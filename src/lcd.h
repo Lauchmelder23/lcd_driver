@@ -1,6 +1,7 @@
 #ifndef _LCD_H
 #define _LCD_H
 
+#include <linux/module.h>
 #include <linux/cdev.h>
 
 #define LCD_MAJOR 0
