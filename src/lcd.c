@@ -2,6 +2,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/fs.h>
+#include <linux/gpio.h>
 
 #include "lcd.h"
 
@@ -16,6 +17,9 @@ module_param(lcd_minor, int, S_IRUGO);
 static struct lcd_dev lcddev = { 0 };
 static int  __init lcd_init_cdev(void);
 static void __exit lcd_exit_cdev(void);
+
+static int  __init lcd_init_gpio(void);
+static void __exit lcd_exit_gpio(void);
 
 extern loff_t   lcd_llseek  (struct file*, loff_t, int);
 extern ssize_t  lcd_read    (struct file*, char __user*, size_t, loff_t*);
@@ -60,12 +64,17 @@ static int __init lcd_init_module(void)
     if(result < 0)
         return result;
 
+    result = lcd_init_gpio();
+    if(result < 0)
+        return result;
+
     printk(KERN_INFO "%s: Module loaded!\n", THIS_MODULE->name);
     return result;
 }
 
 static void __exit lcd_exit_module(void)
 {
+    lcd_exit_gpio();
     lcd_exit_cdev();
     unregister_chrdev_region(lcddev.devno, 1);
 
@@ -93,4 +102,16 @@ static int __init lcd_init_cdev(void)
 static void __exit lcd_exit_cdev(void)
 {
     cdev_del(&lcddev.dev);
+}
+
+static int  __init lcd_init_gpio(void)
+{
+    lcddev.gpio = 18;
+    gpio_direction_output(lcddev.gpio, 0);
+    return 0;
+}
+
+static void __exit lcd_exit_gpio(void)
+{
+    
 }

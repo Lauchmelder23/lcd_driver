@@ -14,6 +14,7 @@ struct lcd_dev
 {
     dev_t devno;
     struct cdev dev;
+    int gpio;
 };
 
 #endif

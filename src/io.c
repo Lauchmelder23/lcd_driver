@@ -2,6 +2,7 @@
 #define LCD_IO_H_
 
 #include <linux/fs.h>
+#include <linux/gpio.h>
 #include "lcd.h"
 
 loff_t lcd_llseek(struct file* filp, loff_t where, int whence)
@@ -30,12 +31,17 @@ int lcd_open(struct inode* inode, struct file* filp)
     dev = container_of(inode->i_cdev, struct lcd_dev, dev);
     filp->private_data = (void*)dev;
 
+    gpio_set_value(dev->gpio, 1);
+
     printk(KERN_INFO "%s: Opened device\n", THIS_MODULE->name);
     return 0;
 }
 
 int lcd_release(struct inode* inode, struct file* filp)
 {
+    struct lcd_dev* dev;
+    dev = (struct lcd_dev*)filp->private_data;
+    gpio_set_value(dev->gpio, 0);
     printk(KERN_INFO "%s: Released device\n", THIS_MODULE->name);
     return 0;
 }
