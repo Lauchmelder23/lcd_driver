@@ -24,6 +24,7 @@ ssize_t lcd_write(struct file* filp, const char __user* buf, size_t count, loff_
     char* cmd_start = NULL;
     char* cmd_end = NULL;
     ssize_t retval = 0;
+    struct lcd_gpio_config* config;
 
     if(down_interruptible(&dev->sem))
         return retval;
@@ -47,14 +48,18 @@ ssize_t lcd_write(struct file* filp, const char __user* buf, size_t count, loff_
     cmd_start = kern_buf;
     cmd_end = kern_buf;
 
+    config = &dev->config;
+
     while(advance_ptr(kern_buf, count, &cmd_end))
     {
         *cmd_end = '\0';
 
         if(strcmp(cmd_start, "0") == 0)
-            gpio_set_value(dev->gpio, 0);
-        else if(strcmp(cmd_start, "1") == 0)
-            gpio_set_value(dev->gpio, 1);
+            gpio_set_value(config->power, 0);
+        else if(strcmp(cmd_start, "1") == 0) {
+            printk(KERN_DEBUG "%s: Setting output of gpio %d to 1", THIS_MODULE->name, config->power);
+            gpio_set_value(config->power, 1);
+        }
         else
             printk(KERN_WARNING "%s: Unrecognized command \"%s\"\n", THIS_MODULE->name, cmd_start);
 

@@ -8,19 +8,34 @@
 
 MODULE_LICENSE("GPL");
 
-int lcd_major = LCD_MAJOR;
-int lcd_minor = LCD_MINOR;
-int lcd_gpio  = LCD_GPIO;
+static int lcd_major = LCD_MAJOR;
+static int lcd_minor = LCD_MINOR;
 
 module_param(lcd_major, int, S_IRUGO);
 module_param(lcd_minor, int, S_IRUGO);
-module_param(lcd_gpio,  int, S_IRUGO);
+
+static int pin_power = LCD_PIN_POWER;
+module_param(pin_power, int, S_IRUGO);
+
+static int pin_rs = LCD_PIN_REGISTER_SELECT;
+module_param(pin_rs, int, S_IRUGO);
+
+static int pin_rw = LCD_PIN_READ_WRITE;
+module_param(pin_rw, int, S_IRUGO);
+
+static int pin_enable = LCD_PIN_ENABLE;
+module_param(pin_enable, int, S_IRUGO);
+
+static int pin_data[4] = LCD_PIN_DATA;
+static int count;
+module_param_array(pin_data, int, &count, S_IRUGO);
 
 static struct lcd_dev lcddev = { 0 };
-static int  __init lcd_init_cdev(void);
-static void __exit lcd_exit_cdev(void);
+static int __init lcd_init_cdev(void);
+static int __init lcd_init_gpio(void);
+static int __init lcd_validate_gpio(void);
 
-static int  __init lcd_init_gpio(void);
+static void __exit lcd_exit_cdev(void);
 static void __exit lcd_exit_gpio(void);
 
 extern loff_t   lcd_llseek  (struct file*, loff_t, int);
@@ -103,17 +118,37 @@ static int __init lcd_init_cdev(void)
     return result;
 }
 
+static int  __init lcd_init_gpio(void)
+{
+    lcd_validate_gpio();
+
+    // gpio_direction_output(lcddev.gpio, 0);
+    return 0;
+}
+
+static int __init lcd_validate_gpio(void)
+{
+    struct lcd_gpio_config* config = &lcddev.config;
+
+    config->power  = pin_power;
+    config->rs     = pin_rs;
+    config->rw     = pin_rw;
+    config->enable = pin_enable;
+
+    memcpy(config->data, pin_data, 4 * sizeof(int));
+
+    // TODO: Check if pin configuration is valid
+    //  - no duplicate pins?
+    //  - all pin numbers in range?
+
+    return 0;
+}
+
 static void __exit lcd_exit_cdev(void)
 {
     cdev_del(&lcddev.dev);
 }
 
-static int  __init lcd_init_gpio(void)
-{
-    lcddev.gpio = 18;
-    gpio_direction_output(lcddev.gpio, 0);
-    return 0;
-}
 
 static void __exit lcd_exit_gpio(void)
 {
