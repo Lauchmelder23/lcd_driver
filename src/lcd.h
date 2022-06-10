@@ -3,6 +3,7 @@
 
 #include <linux/module.h>
 #include <linux/cdev.h>
+#include <linux/semaphore.h>
 
 #define LCD_MAJOR 0
 #define LCD_MINOR 0
@@ -18,7 +19,7 @@ struct lcd_gpio_config
     int power;
     int rs, rw, enable;
     int data[4];
-};
+} __attribute__((packed));
 
 struct lcd_dev
 {
@@ -26,6 +27,7 @@ struct lcd_dev
     struct cdev dev;
     struct semaphore sem;
     struct lcd_gpio_config config;
+    int* used_pins;
 };
 
 #endif

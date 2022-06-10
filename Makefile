@@ -1,5 +1,5 @@
 obj-m = lcd.o
-lcd-y = src/lcd.o src/io.o
+lcd-y = src/lcd.o src/io.o src/checks.o
 
 KVERSION = $(shell uname -r)
 

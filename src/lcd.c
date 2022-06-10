@@ -5,6 +5,7 @@
 #include <linux/gpio.h>
 
 #include "lcd.h"
+#include "checks.h" 
 
 MODULE_LICENSE("GPL");
 
@@ -85,7 +86,10 @@ static int __init lcd_init_module(void)
 
     result = lcd_init_gpio();
     if(result < 0)
+    {
+        printk(KERN_ERR "%s: Failed to configure GPIO pins\n", THIS_MODULE->name);
         return result;
+    }
 
     printk(KERN_INFO "%s: Module loaded!\n", THIS_MODULE->name);
     return result;
@@ -120,26 +124,41 @@ static int __init lcd_init_cdev(void)
 
 static int  __init lcd_init_gpio(void)
 {
-    lcd_validate_gpio();
+    int result, i;
+    
+    result = lcd_validate_gpio();
+    
+    if(result < 0)
+        return result;
+    
+    for(i = 0; i < 8; i++)
+        gpio_direction_output(lcddev.used_pins[i], 0);
 
-    // gpio_direction_output(lcddev.gpio, 0);
-    return 0;
+    return result;
 }
 
 static int __init lcd_validate_gpio(void)
 {
+    int result = 0;
     struct lcd_gpio_config* config = &lcddev.config;
+    lcddev.used_pins = (int*)config;
 
-    config->power  = pin_power;
-    config->rs     = pin_rs;
-    config->rw     = pin_rw;
-    config->enable = pin_enable;
+    config->power   = lcd_assign_gpio(pin_power);
+    config->rs      = lcd_assign_gpio(pin_rs);
+    config->rw      = lcd_assign_gpio(pin_rw);
+    config->enable  = lcd_assign_gpio(pin_enable);
 
-    memcpy(config->data, pin_data, 4 * sizeof(int));
+    config->data[0] = lcd_assign_gpio(pin_data[0]);
+    config->data[1] = lcd_assign_gpio(pin_data[1]);
+    config->data[2] = lcd_assign_gpio(pin_data[2]);
+    config->data[3] = lcd_assign_gpio(pin_data[3]);
 
-    // TODO: Check if pin configuration is valid
-    //  - no duplicate pins?
-    //  - all pin numbers in range?
+    result = lcd_check_duplicates(lcddev.used_pins);
+    if(result < 0)
+    {
+        printk(KERN_ERR "%s: Invalid pin configuration (duplicate pin usage)\n", THIS_MODULE->name);
+        return result;
+    }
 
     return 0;
 }
