@@ -7,6 +7,7 @@ is turned on by opening the file for writing. A string of characters has to be e
 appear on the display.
 
 This is the circuit I used to drive my screen:
+
 ![Circuit Diagram](./img/circuit.svg)
 
 This is also the default pin layout used by the driver. If you want to use a different pin layout, you can change the driver's config as such:
