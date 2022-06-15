@@ -3,6 +3,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/gpio.h>
+#include <linux/proc_fs.h>
 
 #include "lcd.h"
 #include "checks.h" 
@@ -57,6 +58,19 @@ static struct file_operations lcd_fops =
     .release        = lcd_release
 };
 
+extern int      lcd_proc_open       (struct inode*, struct file*);
+extern ssize_t  lcd_proc_read       (struct file*, char __user*, size_t, loff_t*);
+extern loff_t   lcd_proc_lseek      (struct file*, loff_t, int);
+extern int      lcd_proc_release    (struct inode*, struct file*);
+
+static struct proc_ops lcd_pops = 
+{
+    .proc_open      = lcd_proc_open,
+    .proc_read      = lcd_proc_read,
+    .proc_lseek     = lcd_proc_lseek,
+    .proc_release   = lcd_proc_release
+};
+
 static int __init lcd_init_module(void)
 {
     int result = 0;
@@ -91,12 +105,17 @@ static int __init lcd_init_module(void)
         return result;
     }
 
+    gpio_set_value(lcddev.config.power, 1);
+
+    lcddev.proc_dir = proc_create_data("lcd", 0, NULL, &lcd_pops, (void*)&lcddev);
+
     printk(KERN_INFO "%s: Module loaded!\n", THIS_MODULE->name);
     return result;
 }
 
 static void __exit lcd_exit_module(void)
 {
+    proc_remove(lcddev.proc_dir);
     lcd_exit_gpio();
     lcd_exit_cdev();
     unregister_chrdev_region(lcddev.devno, 1);
@@ -131,8 +150,9 @@ static int  __init lcd_init_gpio(void)
     if(result < 0)
         return result;
     
-    for(i = 0; i < 8; i++)
+    for(i = 0; i < 8; i++) {
         gpio_direction_output(lcddev.used_pins[i], 0);
+    }
 
     return result;
 }

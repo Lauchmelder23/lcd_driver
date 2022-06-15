@@ -1,6 +1,7 @@
 #include "checks.h"
 
 #include <linux/module.h>
+#include <linux/gpio.h>
 #include "lcd.h"
 
 
@@ -16,12 +17,14 @@ int lcd_is_valid_gpio(int pin)
 
 int lcd_assign_gpio(int pin)
 {
-    if(lcd_is_valid_gpio(pin))
-        return pin;
+    if(!lcd_is_valid_gpio(pin)) 
+    {
+        printk(KERN_WARNING "%s: GPIO pin %d is invalid. Using %d instead\n", THIS_MODULE->name, pin, sub_pin);
+        pin = sub_pin++;
+    }
 
-
-    printk(KERN_WARNING "%s: GPIO pin %d is invalid. Using %d instead\n", THIS_MODULE->name, pin, sub_pin);
-    return sub_pin++;
+    // gpio_request(pin, "no label");
+    return pin;
 }
 
 int lcd_check_duplicates(const int* used_pins)

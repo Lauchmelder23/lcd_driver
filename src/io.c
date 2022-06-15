@@ -4,8 +4,7 @@
 #include <linux/fs.h>
 #include <linux/gpio.h>
 #include "lcd.h"
-
-static bool advance_ptr(const char* base, ssize_t size, char** ptr);
+#include "interface.h"
 
 loff_t lcd_llseek(struct file* filp, loff_t where, int whence)
 {
@@ -20,58 +19,26 @@ ssize_t lcd_read(struct file* filp, char __user* buf, size_t count, loff_t* off)
 ssize_t lcd_write(struct file* filp, const char __user* buf, size_t count, loff_t* off)
 {
     struct lcd_dev* dev = (struct lcd_dev*)filp->private_data;
-    char* kern_buf = NULL;
-    char* cmd_start = NULL;
-    char* cmd_end = NULL;
-    ssize_t retval = 0;
-    struct lcd_gpio_config* config;
+    struct lcd_gpio_config* cfg = &dev->config;
+    char* data = (char*)kmalloc(count, GFP_KERNEL);
+    char* ptr;
 
-    if(down_interruptible(&dev->sem))
-        return retval;
-
-    kern_buf = (char*)kmalloc(count, GFP_KERNEL);
-    if(kern_buf == NULL)
+    printk(KERN_DEBUG "%s: test %d\n", THIS_MODULE->name, count);
+    
+    if(copy_from_user((void*)data, (const void*)buf, count) != 0)
     {
-        printk(KERN_ERR "%s: Failed to allocate buffer (%d bytes), aborting write.\n", THIS_MODULE->name, count);
-        retval = -ENOMEM;
+        printk(KERN_WARNING "%s: Failed to copy some bytes from user.\n", THIS_MODULE->name);
         goto out;
     }
 
-    if(copy_from_user(kern_buf, buf, count))
+    for(ptr = data; *ptr != '\0' && *ptr != '\n'; ptr++)
     {
-        printk(KERN_ERR "%s: Failed to copy data from user, aborting write.\n", THIS_MODULE->name);
-        retval = -EFAULT;
-        kfree(kern_buf);
-        goto out;
+        lcd_send_data(cfg, (uint8_t)*ptr);
     }
-
-    cmd_start = kern_buf;
-    cmd_end = kern_buf;
-
-    config = &dev->config;
-
-    while(advance_ptr(kern_buf, count, &cmd_end))
-    {
-        *cmd_end = '\0';
-
-        if(strcmp(cmd_start, "0") == 0)
-            gpio_set_value(config->power, 0);
-        else if(strcmp(cmd_start, "1") == 0) {
-            printk(KERN_DEBUG "%s: Setting output of gpio %d to 1", THIS_MODULE->name, config->power);
-            gpio_set_value(config->power, 1);
-        }
-        else
-            printk(KERN_WARNING "%s: Unrecognized command \"%s\"\n", THIS_MODULE->name, cmd_start);
-
-        cmd_start = cmd_end + 1;
-    }
-
-    retval = count;
-    kfree(kern_buf);
 
 out:
-    up(&dev->sem);
-    return retval;
+    kfree(data);
+    return count;
 }
 
 long lcd_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
@@ -83,7 +50,13 @@ int lcd_open(struct inode* inode, struct file* filp)
 {
     struct lcd_dev* dev;
     dev = container_of(inode->i_cdev, struct lcd_dev, dev);
+
+    if(down_trylock(&dev->sem))
+        return -EACCES;
+
     filp->private_data = (void*)dev;
+
+    lcd_power_on(&dev->config);
 
     printk(KERN_DEBUG "%s: Opened device\n", THIS_MODULE->name);
     return 0;
@@ -93,17 +66,13 @@ int lcd_release(struct inode* inode, struct file* filp)
 {
     struct lcd_dev* dev;
     dev = (struct lcd_dev*)filp->private_data;
-    
+
+    lcd_power_off(&dev->config);
+
+    up(&dev->sem);
+
     printk(KERN_DEBUG "%s: Released device\n", THIS_MODULE->name);
     return 0;
-}
-
-static bool advance_ptr(const char* base, ssize_t size, char** ptr)
-{
-    while(*ptr - base < size && **ptr != '\n')
-        (*ptr)++;
-
-    return *ptr - base < size;
 }
 
 #endif
